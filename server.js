@@ -193,38 +193,39 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     // 3️⃣ COMPTE NON CONFIRMÉ
-    if (user.statue === "no confirm") {
-      const activationCode = Math.floor(10000 + Math.random() * 90000).toString();
+   // CAS : COMPTE NON CONFIRMÉ
+if (user.statue === "no confirm") {
+  const activationCode = Math.floor(10000 + Math.random() * 90000).toString();
 
-      await db.query(
-        "UPDATE users SET activation_code = $1 WHERE id = $2",
-        [activationCode, user.id]
-      );
+  await db.query(
+    "UPDATE users SET activation_code = $1 WHERE id = $2",
+    [activationCode, user.id]
+  );
 
-      // ⚠️ bugs corrigés : name & customId n'existaient pas
-      await transporter.sendMail({
-        from: '"AlphaBoutique" <ton.email@gmail.com>',
-        to: user.email,
-        subject: "Activation de votre compte",
-        html: `
-          <h2>Bonjour ${user.name},</h2>
-          <p>Votre compte est prêt 🚀</p>
-          <p><b>ID utilisateur :</b> ${user.id}</p>
-          <p><b>Code d'activation :</b> ${activationCode}</p>
-        `,
-      });
+  await transporter.sendMail({
+    from: '"AlphaBoutique" <ton.email@gmail.com>',
+    to: user.email,
+    subject: "Activation de votre compte",
+    html: `
+      <h2>Bonjour ${user.name},</h2>
+      <p>Votre compte est prêt 🚀</p>
+      <p><b>ID utilisateur :</b> ${user.id}</p>
+      <p><b>Code d'activation :</b> ${activationCode}</p>
+    `,
+  });
 
-      return res.json({
-        needActivation: true,
-        user: {
-          uid: user.id,
-          name: user.name,
-          email: user.email,
-          statue: user.statue,
-          boutique: user.boutique
-        }
-      });
+  return res.json({
+    needActivation: true,
+    user: {
+      uid: user.id,
+      name: user.name,
+      email: user.email,
+      statue: user.statue,
+      boutique: user.boutique
     }
+  });
+}
+
 
     // 4️⃣ COMPTE CONFIRMÉ → JWT
     const token = jwt.sign(
@@ -342,11 +343,6 @@ app.patch("/api/auth/activate/:uid", async (req, res) => {
   }
 });
 
-app.get("/api/debug/users", async (req, res) => {
-  const result = await db.query("SELECT * FROM users");
-  res.json(result.rows);
-});
-
 
 
 /* =========================
@@ -357,6 +353,4 @@ initDatabase().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
   });
-
 });
-
