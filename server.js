@@ -30,7 +30,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use(cors({
-    origin: "https://alphaboutiquefrontend.onrender.com", // ton frontend Vite
+    origin: "http://localhost:5173", // ton frontend Vite
     credentials: true // 🔑 pour permettre cookies + fetch
 }));
 
@@ -354,3 +354,4 @@ initDatabase().then(() => {
     console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
   });
 });
+
