@@ -1,6 +1,7 @@
-import { db } from './db.js';
+import { db } from "./db.js";
 
-async function createUsersTable() {
+// USERS
+export async function createUsersTable() {
   try {
     await db.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -21,14 +22,15 @@ async function createUsersTable() {
   }
 }
 
-async function createBoutiqueTable() {
+// BOUTIQUE
+export async function createBoutiqueTable() {
   try {
     await db.query(`
       CREATE TABLE IF NOT EXISTS boutique (
         id SERIAL PRIMARY KEY,
-        name_boutique TEXT NOT NULL,
+        nameBoutique TEXT NOT NULL,
         solde INTEGER DEFAULT 0,
-        solde_p INTEGER DEFAULT 0,
+        soldeP INTEGER DEFAULT 0,
         etat TEXT DEFAULT 'offline',
         wilaya TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -40,15 +42,16 @@ async function createBoutiqueTable() {
   }
 }
 
-async function createVenteTable() {
+// VENTE
+export async function createVenteTable() {
   try {
     await db.query(`
       CREATE TABLE IF NOT EXISTS vente (
         id SERIAL PRIMARY KEY,
-        name_boutique TEXT NOT NULL,
-        produit_code TEXT NOT NULL,
-        prix_livraison INTEGER DEFAULT 0,
-        prix_total INTEGER DEFAULT 0,
+        nameBoutique TEXT NOT NULL,
+        ProduitCode TEXT NOT NULL,
+        PrixLivraison INTEGER DEFAULT 0,
+        PrixTotal INTEGER DEFAULT 0,
         etat TEXT DEFAULT 'Non Confirmer',
         wilaya TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -60,15 +63,16 @@ async function createVenteTable() {
   }
 }
 
-async function createProduitTable() {
+// PRODUIT
+export async function createProduitTable() {
   try {
     await db.query(`
       CREATE TABLE IF NOT EXISTS produit (
         id SERIAL PRIMARY KEY,
-        name_boutique TEXT NOT NULL,
-        name_produit TEXT NOT NULL,
-        prix_produit INTEGER NOT NULL,
-        descr_produit TEXT NOT NULL,
+        nameBoutique TEXT NOT NULL,
+        nameProduit TEXT NOT NULL,
+        prixProduit INTEGER NOT NULL,
+        descrProduit TEXT NOT NULL,
         etat TEXT DEFAULT 'Disponible',
         stock INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -79,13 +83,3 @@ async function createProduitTable() {
     console.error("❌ Erreur création table PRODUIT :", err.message);
   }
 }
-
-// Exécution
-(async () => {
-  await createUsersTable();
-  await createBoutiqueTable();
-  await createVenteTable();
-  await createProduitTable();
-  console.log("✅ Toutes les tables sont créées");
-  process.exit(0);
-})();
