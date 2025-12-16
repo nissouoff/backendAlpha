@@ -192,9 +192,9 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     // ⚠️ compte non activé
-    if (user.statue !== "confirm") {
-      return res.status(403).json({ message: "Compte non activé" });
-    }
+    //if (user.statue !== "confirm") {
+      //return res.status(403).json({ message: "Compte non activé" });
+    //}
 
     // JWT
     const token = jwt.sign(
