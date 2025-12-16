@@ -30,7 +30,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use(cors({
-    origin: "http://localhost:5173", // ton frontend Vite
+    origin: "https://alphaboutiquefrontend.onrender.com", // ton frontend Vite
     credentials: true // 🔑 pour permettre cookies + fetch
 }));
 
@@ -175,79 +175,47 @@ app.post("/api/auth/login", async (req, res) => {
   }
 
   try {
-    // 1️⃣ Récupérer l'utilisateur
     const { rows } = await db.query(
       "SELECT * FROM users WHERE email = $1",
       [email]
     );
 
+    if (rows.length === 0) {
+      return res.status(401).json({ message: "Email ou mot de passe incorrect" });
+    }
+
     const user = rows[0];
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
+
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      return res.status(401).json({ message: "Email ou mot de passe incorrect" });
     }
 
-    // 2️⃣ Vérifier le mot de passe
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(401).json({ message: "Mot de passe incorrect" });
+    // ⚠️ compte non activé
+    if (user.statue !== "confirm") {
+      return res.status(403).json({ message: "Compte non activé" });
     }
 
-    // 3️⃣ COMPTE NON CONFIRMÉ
-   // CAS : COMPTE NON CONFIRMÉ
-if (user.statue === "no confirm") {
-  const activationCode = Math.floor(10000 + Math.random() * 90000).toString();
-
-  await db.query(
-    "UPDATE users SET activation_code = $1 WHERE id = $2",
-    [activationCode, user.id]
-  );
-
-  await transporter.sendMail({
-    from: '"AlphaBoutique" <ton.email@gmail.com>',
-    to: user.email,
-    subject: "Activation de votre compte",
-    html: `
-      <h2>Bonjour ${user.name},</h2>
-      <p>Votre compte est prêt 🚀</p>
-      <p><b>ID utilisateur :</b> ${user.id}</p>
-      <p><b>Code d'activation :</b> ${activationCode}</p>
-    `,
-  });
-
-  return res.json({
-    needActivation: true,
-    user: {
-      uid: user.id,
-      name: user.name,
-      email: user.email,
-      statue: user.statue,
-      boutique: user.boutique
-    }
-  });
-}
-
-
-    // 4️⃣ COMPTE CONFIRMÉ → JWT
+    // JWT
     const token = jwt.sign(
       { uid: user.id, email: user.email },
-      JWT_SECRET,
+      process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    // 5️⃣ Cookie HttpOnly
+    // Cookie sécurisé
     res.cookie("auth_token", token, {
       httpOnly: true,
-      secure: false,   // true en prod (HTTPS)
-      sameSite: "lax",
+      secure: true,
+      sameSite: "None",
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
-    return res.json({
+    res.json({
       user: {
         uid: user.id,
-        name: user.name,
         email: user.email,
-        statue: user.statue,
+        name: user.name,
         boutique: user.boutique
       }
     });
@@ -354,4 +322,3 @@ initDatabase().then(() => {
     console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
   });
 });
-
