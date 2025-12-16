@@ -342,6 +342,11 @@ app.patch("/api/auth/activate/:uid", async (req, res) => {
   }
 });
 
+app.get("/api/debug/users", async (req, res) => {
+  const result = await db.query("SELECT * FROM users");
+  res.json(result.rows);
+});
+
 
 
 /* =========================
@@ -352,4 +357,5 @@ initDatabase().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
   });
+
 });
