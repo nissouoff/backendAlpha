@@ -167,6 +167,7 @@ app.post("/api/auth/logout", (req, res) => {
 /* =========================
    LOGIN
 ========================= */
+// LOGIN
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -176,7 +177,7 @@ app.post("/api/auth/login", async (req, res) => {
 
   try {
     const { rows } = await db.query(
-      "SELECT * FROM users WHERE email = $1",
+      "SELECT id, name, email, password, statue FROM users WHERE email = $1",
       [email]
     );
 
@@ -186,24 +187,27 @@ app.post("/api/auth/login", async (req, res) => {
 
     const user = rows[0];
 
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) {
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) {
       return res.status(401).json({ message: "Email ou mot de passe incorrect" });
     }
 
-    // ⚠️ compte non activé
-    //if (user.statue !== "confirm") {
-      //return res.status(403).json({ message: "Compte non activé" });
-    //}
+    // 👇 IMPORTANT
+    if (user.statue === "no confirm") {
+      return res.status(200).json({
+        status: "NO_CONFIRM",
+        uid: user.id,
+        email: user.email
+      });
+    }
 
-    // JWT
+    // ✅ confirmé → JWT
     const token = jwt.sign(
-      { uid: user.id, email: user.email },
+      { uid: user.id },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    // Cookie sécurisé
     res.cookie("auth_token", token, {
       httpOnly: true,
       secure: true,
@@ -212,16 +216,16 @@ app.post("/api/auth/login", async (req, res) => {
     });
 
     res.json({
+      status: "OK",
       user: {
         uid: user.id,
-        email: user.email,
         name: user.name,
-        boutique: user.boutique
+        email: user.email
       }
     });
 
   } catch (err) {
-    console.error("Login error:", err);
+    console.error(err);
     res.status(500).json({ message: "Erreur serveur" });
   }
 });
