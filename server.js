@@ -8,6 +8,26 @@ import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 dotenv.config();
 
+import {
+  createUsersTable,
+  createBoutiqueTable,
+  createVenteTable,
+  createProduitTable
+} from "./tab.js";
+
+async function initDatabase() {
+  console.log("⏳ Initialisation de la base de données...");
+
+  await createUsersTable();
+  await createBoutiqueTable();
+  await createVenteTable();
+  await createProduitTable();
+
+  console.log("🚀 Base de données prête");
+}
+
+
+
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const app = express();
@@ -103,36 +123,103 @@ app.post("/api/auth/login", async (req, res) => {
 
 /* ===== Vérification code activation ===== */
 app.patch("/api/auth/activate/:uid", async (req, res) => {
-    const { uid } = req.params;
+    const { uid } = req.params;           // uid = id à 6 chiffres
     let { code } = req.body;
 
+    // Vérification du code
     if (!code || code.toString().trim().length !== 5)
         return res.status(400).json({ message: "Code invalide" });
 
     code = code.toString().trim();
 
     try {
+        // Récupérer l'utilisateur par son id (uid)
         const { rows } = await db.query(
-            "SELECT activation_code FROM users WHERE id = $1",
+            "SELECT id, statue, activation_code FROM users WHERE id = $1",
             [uid]
         );
+
         const user = rows[0];
         if (!user) return res.status(404).json({ message: "Utilisateur non trouvé" });
 
+        // Vérifier que le compte n'est pas déjà confirmé
+        if (user.statue === "confirm") 
+            return res.status(400).json({ message: "Compte déjà confirmé" });
+
+        // Vérifier le code d'activation
         if (!user.activation_code || user.activation_code.trim() !== code)
             return res.status(400).json({ message: "Code d'activation incorrect" });
 
+        // Mettre à jour le statut
         await db.query(
             "UPDATE users SET statue = $1, activation_code = NULL WHERE id = $2",
             ["confirm", uid]
         );
 
         res.json({ message: "Compte confirmé avec succès" });
+
     } catch (err) {
         console.error("Activation error:", err);
         res.status(500).json({ message: "Erreur serveur" });
     }
 });
 
+
+async function generateUniqueId() {
+    let id;
+    let exists = true;
+
+    while (exists) {
+        id = Math.floor(100000 + Math.random() * 900000); // 6 chiffres
+        const { rows } = await db.query("SELECT id FROM users WHERE id = $1", [id]);
+        exists = rows.length > 0;
+    }
+
+    return id;
+}
+
+app.post('/api/auth/signup', async (req, res) => {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password)
+        return res.status(400).json({ message: 'Veuillez remplir tous les champs' });
+
+    try {
+        // Vérifier si email existe déjà
+        const existing = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+        if (existing.rows.length > 0)
+            return res.status(400).json({ message: 'Email déjà utilisé' });
+
+        // Hash du mot de passe
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Générer un ID unique 6 chiffres
+        const id = await generateUniqueId();
+
+        // Insérer l'utilisateur
+        const result = await db.query(
+            `INSERT INTO users (id, name, email, password) 
+             VALUES ($1, $2, $3, $4) RETURNING id, name, email`,
+            [id, name, email, hashedPassword]
+        );
+
+        const user = result.rows[0];
+        res.json({ message: 'Inscription réussie', user: { uid: user.id, name: user.name, email: user.email } });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+});
+
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Serveur démarré sur port ${PORT}`));
+
+initDatabase()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`✅ Serveur démarré sur http://localhost:${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error("❌ Échec initialisation DB :", err);
+    process.exit(1); // stop si DB KO
+  });
