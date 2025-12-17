@@ -118,7 +118,7 @@ app.post("/api/auth/login", async (req, res) => {
     // CAS NO_CONFIRM → envoyer code activation
     if (user.statue === "no confirm") {
       const activationCode = Math.floor(10000 + Math.random() * 90000).toString();
-      await db.query("UPDATE users SET activation_code = $1 WHERE id = $2", [activationCode, user.id]);
+      await db.query("UPDATE users SET activationCode = $1 WHERE id = $2", [activationCode, user.id]);
 
       const mailOptions = {
         from: `"AlphaBoutique" <${process.env.SMTP_USER}>`,
@@ -199,3 +199,4 @@ initDatabase().then(() => {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`));
 });
+
