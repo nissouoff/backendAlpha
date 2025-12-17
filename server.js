@@ -168,12 +168,12 @@ app.post("/api/auth/logout", (req, res) => {
    LOGIN
 ========================= */
 // LOGIN
+import nodemailer from "nodemailer";
+
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ message: "Champs manquants" });
-  }
+  if (!email || !password) return res.status(400).json({ message: "Champs manquants" });
 
   try {
     const { rows } = await db.query(
@@ -181,32 +181,57 @@ app.post("/api/auth/login", async (req, res) => {
       [email]
     );
 
-    if (rows.length === 0) {
+    if (rows.length === 0)
       return res.status(401).json({ message: "Email ou mot de passe incorrect" });
-    }
 
     const user = rows[0];
-
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) {
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid)
       return res.status(401).json({ message: "Email ou mot de passe incorrect" });
-    }
 
-    // 👇 IMPORTANT
+    // -------------------- CAS NO_CONFIRM --------------------
     if (user.statue === "no confirm") {
+      // 1️⃣ Générer code activation aléatoire 5 chiffres
+      const activationCode = Math.floor(10000 + Math.random() * 90000).toString();
+
+      // 2️⃣ Mettre à jour la DB
+      await db.query(
+        "UPDATE users SET activation_code = $1 WHERE id = $2",
+        [activationCode, user.id]
+      );
+
+
+      const mailOptions = {
+        from: `"AlphaBoutique" <${process.env.SMTP_USER}>`,
+        to: user.email,
+        subject: "Votre code d’activation 🔐",
+        html: `
+          <div style="font-family: sans-serif; padding: 20px;">
+            <h2 style="color: #2c3e50;">Bonjour ${user.name},</h2>
+            <p>Merci pour votre inscription sur <strong>MonSite</strong>.</p>
+            <p>Votre <strong>code d’activation</strong> est :</p>
+            <h1 style="color: #e74c3c;">${activationCode}</h1>
+            <p>Il est valide uniquement pour les 10 prochaines minutes.</p>
+            <p>Si vous n’avez pas demandé ce code, ignorez ce mail.</p>
+            <br>
+            <p>— L’équipe AlphaBoutique</p>
+          </div>
+        `,
+      };
+
+      await transporter.sendMail(mailOptions);
+
+      // 4️⃣ Retour front
       return res.status(200).json({
         status: "NO_CONFIRM",
         uid: user.id,
-        email: user.email
+        email: user.email,
+        message: "Code d’activation envoyé par email"
       });
     }
 
-    // ✅ confirmé → JWT
-    const token = jwt.sign(
-      { uid: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    // -------------------- CAS CONFIRM --------------------
+    const token = jwt.sign({ uid: user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
     res.cookie("auth_token", token, {
       httpOnly: true,
@@ -225,10 +250,11 @@ app.post("/api/auth/login", async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Login error:", err);
     res.status(500).json({ message: "Erreur serveur" });
   }
 });
+
 
 
 
