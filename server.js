@@ -34,7 +34,7 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
-    origin: "https://alphaboutiquefrontend.onrender.com", // ton frontend
+    origin: "http://localhost:5173", // ton frontend
     credentials: true
 }));
 
@@ -223,4 +223,3 @@ initDatabase()
     console.error("❌ Échec initialisation DB :", err);
     process.exit(1); // stop si DB KO
   });
-
