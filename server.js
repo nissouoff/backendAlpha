@@ -161,30 +161,40 @@ app.post("/api/auth/login", async (req, res) => {
 
     /* ---- NO CONFIRM ---- */
     if (user.statue === "no confirm") {
+  console.log("🟡 USER NOT CONFIRMED:", user.email);
+
   const code = Math.floor(10000 + Math.random() * 90000).toString();
+  console.log("🔐 ACTIVATION CODE:", code);
 
   await db.query(
     "UPDATE users SET activation_code = $1 WHERE id = $2",
     [code, user.id]
   );
 
-  // 🔥 ENVOI MAIL ASYNCHRONE (NON BLOQUANT)
+  console.log("💾 Code enregistré en DB");
+
   transporter.sendMail({
     from: `"AlphaBoutique" <${process.env.SMTP_USER}>`,
     to: user.email,
     subject: "Code d’activation 🔐",
     html: `<h2>Code : <strong>${code}</strong></h2>`
   })
-  .then(() => console.log("📧 Mail envoyé"))
-  .catch(err => console.error("📧 Mail error:", err.message));
+  .then(info => {
+    console.log("📧 MAIL SENT");
+    console.log("MessageId:", info.messageId);
+  })
+  .catch(err => {
+    console.error("❌ MAIL SEND FAILED");
+    console.error(err);
+  });
 
-  // ⚡ RÉPONSE IMMÉDIATE AU FRONT
   return res.json({
     status: "NO_CONFIRM",
     uid: user.id,
     email: user.email
   });
 }
+
 
 
     /* ---- CONFIRM OK ---- */
