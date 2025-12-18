@@ -262,6 +262,29 @@ app.post("/api/auth/logout", (req, res) => {
   res.json({ message: "Déconnecté" });
 });
 
+
+/* ===== GET ALL USERS ===== */
+app.get("/api/users", auth, async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT 
+        id,
+        name,
+        email,
+        statue,
+        boutique,
+        created_at
+      FROM users
+      ORDER BY created_at DESC
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    console.error("GET USERS ERROR:", err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
 /* ================== SERVER ================== */
 const PORT = process.env.PORT || 3000;
 
@@ -275,3 +298,4 @@ initDatabase()
     console.error("❌ DB INIT FAIL", err);
     process.exit(1);
   });
+
