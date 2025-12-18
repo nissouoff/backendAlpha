@@ -158,29 +158,31 @@ app.post("/api/auth/login", async (req, res) => {
 
     /* ---- NO CONFIRM ---- */
     if (user.statue === "no confirm") {
-      const code = Math.floor(10000 + Math.random() * 90000).toString();
-      await db.query(
-        "UPDATE users SET activation_code = $1 WHERE id = $2",
-        [code, user.id]
-      );
+  const code = Math.floor(10000 + Math.random() * 90000).toString();
 
-      try {
-        await transporter.sendMail({
-          from: `"AlphaBoutique" <${process.env.SMTP_USER}>`,
-          to: user.email,
-          subject: "Code d’activation 🔐",
-          html: `<h2>Code : <strong>${code}</strong></h2>`
-        });
-      } catch (e) {
-        console.error("Mail error:", e.message);
-      }
+  await db.query(
+    "UPDATE users SET activation_code = $1 WHERE id = $2",
+    [code, user.id]
+  );
 
-      return res.json({
-        status: "NO_CONFIRM",
-        uid: user.id,
-        email: user.email
-      });
-    }
+  // 🔥 ENVOI MAIL ASYNCHRONE (NON BLOQUANT)
+  transporter.sendMail({
+    from: `"AlphaBoutique" <${process.env.SMTP_USER}>`,
+    to: user.email,
+    subject: "Code d’activation 🔐",
+    html: `<h2>Code : <strong>${code}</strong></h2>`
+  })
+  .then(() => console.log("📧 Mail envoyé"))
+  .catch(err => console.error("📧 Mail error:", err.message));
+
+  // ⚡ RÉPONSE IMMÉDIATE AU FRONT
+  return res.json({
+    status: "NO_CONFIRM",
+    uid: user.id,
+    email: user.email
+  });
+}
+
 
     /* ---- CONFIRM OK ---- */
     const token = jwt.sign(
@@ -262,29 +264,6 @@ app.post("/api/auth/logout", (req, res) => {
   res.json({ message: "Déconnecté" });
 });
 
-
-/* ===== GET ALL USERS ===== */
-app.get("/api/users", auth, async (req, res) => {
-  try {
-    const { rows } = await db.query(`
-      SELECT 
-        id,
-        name,
-        email,
-        statue,
-        boutique,
-        created_at
-      FROM users
-      ORDER BY created_at DESC
-    `);
-
-    res.json(rows);
-  } catch (err) {
-    console.error("GET USERS ERROR:", err);
-    res.status(500).json({ message: "Erreur serveur" });
-  }
-});
-
 /* ================== SERVER ================== */
 const PORT = process.env.PORT || 3000;
 
@@ -298,4 +277,3 @@ initDatabase()
     console.error("❌ DB INIT FAIL", err);
     process.exit(1);
   });
-
