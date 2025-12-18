@@ -53,14 +53,22 @@ app.use((req, res, next) => {
 });
 
 /* ================== MAILER ================== */
+import nodemailer from "nodemailer";
+
 export const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: false, // STARTTLS
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS // APP PASSWORD
+    pass: process.env.SMTP_PASS
   }
+});
+
+// Test rapide
+transporter.verify((err, success) => {
+  if (err) console.error("❌ SMTP VERIFY FAILED", err);
+  else console.log("✅ SMTP prêt pour envoyer des mails !");
 });
 
 
